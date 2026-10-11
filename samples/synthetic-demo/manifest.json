@@ -1,0 +1,22 @@
+{
+  "dataset": "SYN26",
+  "synthetic": true,
+  "files": {
+    "customers": 16,
+    "products": 18,
+    "orders": 32,
+    "order_items": 32,
+    "exports": 72,
+    "export_items": 82,
+    "invoices": 72,
+    "packing_headers": 72,
+    "packing_lines": 342,
+    "containers": 80,
+    "monitor": 20,
+    "monitor_checks": 47,
+    "documents": 32,
+    "invoice_details": 82
+  },
+  "pdf_files": 32,
+  "reference_model": "SPG-X"
+}

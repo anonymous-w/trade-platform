@@ -1,0 +1,5 @@
+services:
+  backend:
+    image: trade-platform-backend:0.2
+  frontend:
+    image: trade-platform-frontend:0.2

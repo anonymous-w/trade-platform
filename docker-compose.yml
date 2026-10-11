@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: trade_platform
+      POSTGRES_USER: trade_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trade_user -d trade_platform"]
+      interval: 5s
+      timeout: 3s
+      retries: 25
+    networks: [appnet]
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/trade_platform
+      DB_USER: trade_user
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      DEMO_DATA_ENABLED: ${DEMO_DATA_ENABLED:-false}
+      DOCUMENT_STORAGE: /data/documents
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      - document_data:/data/documents
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [appnet]
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - '${WEB_PORT:-8088}:80'
+    networks: [appnet]
+volumes:
+  postgres_data:
+  document_data:
+networks:
+  appnet:

@@ -1,0 +1,33 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${COOKIE_SECURE:false}
+      timeout: 8h
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/trade_platform}
+    username: ${DB_USER:trade_user}
+    password: ${DB_PASSWORD:}
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 16MB
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+app:
+  storage-path: ${DOCUMENT_STORAGE:/data/documents}
+  admin-user: ${ADMIN_USER:admin}
+  admin-password: ${ADMIN_PASSWORD:}
+  demo-data: ${DEMO_DATA_ENABLED:false}

@@ -1,0 +1,19 @@
+﻿product_code,model_no,product_name,product_name_en,manufacturer
+SYN26-P01,SPG-X,中古プロファイル研削盤,Used Profile Grinding Machine,WAIDA
+SYN26-P02,SPG-X2,高精度プロファイル研削盤,Precision Profile Grinder,WAIDA
+SYN26-P03,SPG-XL,大型プロファイル研削盤,Large Profile Grinder,WAIDA
+SYN26-P04,MC-500,マシニングセンタ,Machining Center,MAKINO
+SYN26-P05,MC-500A,マシニングセンタ改良型,Machining Center A,MAKINO
+SYN26-P06,MC-750,立形マシニングセンタ,Vertical Machining Center,OKUMA
+SYN26-P07,SL-200,CNC旋盤,CNC Lathe,OKUMA
+SYN26-P08,SL-220,精密CNC旋盤,Precision CNC Lathe,OKUMA
+SYN26-P09,NC-400,NCフライス盤,NC Milling Machine,MAZAK
+SYN26-P10,FM-300,フライス盤,Milling Machine,SHIZUOKA
+SYN26-P11,GR-100,平面研削盤,Surface Grinder,OKAMOTO
+SYN26-P12,GR-120,円筒研削盤,Cylindrical Grinder,OKAMOTO
+SYN26-P13,EDM-250,放電加工機,Electrical Discharge Machine,SODICK
+SYN26-P14,EDM-350,ワイヤ放電加工機,Wire EDM,SODICK
+SYN26-P15,PR-250,油圧プレス機,Hydraulic Press,AIDA
+SYN26-P16,PR-500,大型プレス機,Large Press,AIDA
+SYN26-P17,BD-100,ボール盤,Drilling Machine,KIRA
+SYN26-P18,VM-600,立形旋盤,Vertical Lathe,TOSHIBA
