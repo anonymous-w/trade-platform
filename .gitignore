@@ -9,3 +9,8 @@ target/
 .vscode/
 .DS_Store
 storage/
+
+__pycache__/
+*.py[cod]
+backups/
+*.dump

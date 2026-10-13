@@ -1,15 +1,15 @@
 import {createRouter,createWebHistory} from 'vue-router'
-import {currentUser} from '../api/http'
+import {currentUser,ApiError} from '../api/http'
 import LoginView from '../views/LoginView.vue'
 import LayoutView from '../views/LayoutView.vue'
-import ExportList from '../views/ExportList.vue'
-import ExportDetail from '../views/ExportDetail.vue'
-import DocumentPreview from '../views/DocumentPreview.vue'
-import ContainerHistory from '../views/ContainerHistory.vue'
-import SalesList from '../views/SalesList.vue'
-import SalesDetail from '../views/SalesDetail.vue'
-import ImportView from '../views/ImportView.vue'
-import MonitorView from '../views/MonitorView.vue'
+const ExportList=()=>import('../views/ExportList.vue')
+const ExportDetail=()=>import('../views/ExportDetail.vue')
+const DocumentPreview=()=>import('../views/DocumentPreview.vue')
+const ContainerHistory=()=>import('../views/ContainerHistory.vue')
+const SalesList=()=>import('../views/SalesList.vue')
+const SalesDetail=()=>import('../views/SalesDetail.vue')
+const ImportView=()=>import('../views/ImportView.vue')
+const MonitorView=()=>import('../views/MonitorView.vue')
 const routes=[
   {path:'/login',component:LoginView,meta:{public:true}},
   {path:'/',component:LayoutView,children:[
@@ -29,6 +29,7 @@ const routes=[
 const router=createRouter({history:createWebHistory(),routes})
 router.beforeEach(async to=>{
   if(to.meta.public)return true
-  try{await currentUser();return true}catch{return {path:'/login',query:{redirect:to.fullPath}}}
+  try{await currentUser();return true}catch(e){return {path:'/login',query:{redirect:to.fullPath,...(e instanceof ApiError&&e.status===401?{}:{unavailable:'1'})}}}
 })
+window.addEventListener('session-expired',()=>{if(router.currentRoute.value.path!=='/login')void router.replace({path:'/login',query:{redirect:router.currentRoute.value.fullPath,expired:'1'}})})
 export default router

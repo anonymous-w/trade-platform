@@ -6,7 +6,7 @@ ROOT=Path(__file__).resolve().parents[1]
 assert len(list((ROOT/'frontend/src/views').glob('*.vue')))>=9
 ET.parse(ROOT/'backend/pom.xml')
 readme=(ROOT/'README.md').read_text()
-assert 'docker compose up --build' in readme
+assert re.search(r'docker compose(?: -p [\w-]+)? up --build', readme)
 sql=(ROOT/'backend/src/main/resources/db/migration/V1__unified_schema.sql').read_text()
 tables=set(re.findall(r'CREATE TABLE (\w+) \(',sql))
 assert len(tables)==15

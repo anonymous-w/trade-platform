@@ -1,6 +1,6 @@
 # 数据管理平台 / 販売・輸出管理システム
 
-**代码版本：v0.1（可运行开发原型）** · 根据 `docs/system-design-v0.7.md` 构建。
+**代码版本：v0.2（2026-10-13 优化版，可运行开发原型）** · 根据 `docs/system-design-v0.7.md` 构建。
 
 > 这是面向需求确认与开发的原型，不是已经验证的生产交付系统。尤其销售工作流、五年监视、历史数据字段映射、集装箱实际箱号关联等仍待日本公司确认。
 
@@ -15,8 +15,8 @@
 | コンテナ実績：按型号/箱型/依据查询 | 已实现；区分 `PLANNED` / `DOCUMENTED` / `ACTUAL` |
 | データ取込み：PDF 上传、限定格式 CSV 导入 | 已实现；PDF不做OCR；CSV要求一笔出口只有一款设备 |
 | 販売管理：列表、详情、PDF | **只读基础版**；不包含创建/审批流程 |
-| 5年間監視 | **预留页面**，不擅自定义合规义务 |
-| 自动装箱推荐、AI、移动端 | 不在本版范围 |
+| 5年間監視 | **只读参考列表**，不自动判定监视义务 |
+| 窄屏界面 | 基础响应式适配；没有独立手机 App |
 
 ## 2. 运行环境
 
@@ -28,8 +28,8 @@ cp .env.example .env
 # 开发环境可保持 DEMO_DATA_ENABLED=true
 # Windows PowerShell 可用 Copy-Item .env.example .env
 
-docker compose up --build -d
-docker compose ps
+docker compose -p trade-platform-v02 up --build -d
+docker compose -p trade-platform-v02 ps
 ```
 
 打开 **http://localhost:8088**，登录账号是 `.env` 中的 `ADMIN_USER` 与 `ADMIN_PASSWORD`。
@@ -41,14 +41,14 @@ docker compose ps
 停止运行：
 
 ```bash
-docker compose down
+docker compose -p trade-platform-v02 down
 ```
 
-注意：`docker compose down -v` **会永久删除数据库和上传的文件卷**；如需保留历史数据，请不要添加 `-v`。
+注意：`docker compose -p trade-platform-v02 down -v` **会永久删除数据库和上传的文件卷**；如需保留历史数据，请不要添加 `-v`。
 
 ## 3. 开发模式（不使用 Docker 构建）
 
-本地需要 Java 21、Maven 3.9+、Node 22、PostgreSQL 17。首先启动数据库或运行 `docker compose up -d db`。
+本地需要 Java 21、Maven 3.9+、Node 22、PostgreSQL 17。首先启动数据库或运行 `docker compose -p trade-platform-v02 up -d db`。
 
 ```bash
 # 终端 A：后端（确保数据库及环境变量已配置）
@@ -57,7 +57,7 @@ mvn spring-boot:run
 
 # 终端 B：前端
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -66,7 +66,7 @@ Vite 默认 `http://localhost:5173`，通过代理将 `/api` 转发到 `localhos
 ## 4. 目录说明
 
 ```text
-trade-platform-v0.1/
+trade-platform-v0.2/
 ├── frontend/           Vue 3 + TypeScript + Element Plus
 ├── backend/            Spring Boot 3 + JDBC + Spring Security + Flyway
 │   └── src/main/resources/db/migration/V1__unified_schema.sql
@@ -93,7 +93,7 @@ trade-platform-v0.1/
 - `T_EXPORT_CONTAINER.RECORD_BASIS` 的含义：`PLANNED` 是计划、`DOCUMENTED` 是文件记载、`ACTUAL` 必须有实际出运依据。系统不会根据字段自动推断核实等级。
 - `T_DOCUMENT` 只存储私有文件的元数据，PDF 实体保存在 `document_data` 容器卷，不直接向公网开放。
 - CSV 导入是**严格限制的演示型流程**：单个 `export_no` 只允许一个设备、一个 Invoice、一个箱型配置；金额默认为 0、客户地址和出货地是待核实占位值，导入的出口状态为 DRAFT。这不是原 Excel 的全面迁移工具。
-- 本示例没有为销售记录制作虚构合同；没有原件的单据预览会显示空状态。
+- SYN26 附带明确标记为合成数据的演示 PDF；没有关联文件时显示空状态。
 
 ## 7. API 概览
 
@@ -119,8 +119,8 @@ trade-platform-v0.1/
 
 ```bash
 cd backend && mvn test package
-cd ../frontend && npm install && npm run build
-cd .. && docker compose up --build -d
+cd ../frontend && npm ci && npm run build
+cd .. && docker compose -p trade-platform-v02 up --build -d
 ```
 
 1. 用不同浏览器访问系统，匿名请求受保护 API 应返回 401。
@@ -130,11 +130,11 @@ cd .. && docker compose up --build -d
 5. 通过无管理员权限账户验证不能执行文件上传或 CSV 导入（需要另行建立 USER 角色账户）。
 6. 在测试数据库上执行数据备份和恢复演练。
 
-**部署生产前仍需完成：** HTTPS/TLS 和 `COOKIE_SECURE=true`、受控反向代理、独立备份与恢复验证、实际用户和角色管理、登录暴力破解防护/锁定策略、监控告警、漏洞扫描、敏感数据脱敏、权限需求确认、多客户访问隔离评估、真实业务数据迁移验证及与日本公司的验收。
+**部署生产前仍需完成：** HTTPS/TLS 和 `COOKIE_SECURE=true`、受控反向代理、独立备份与恢复验证、实际用户和角色管理、进一步的登录限流策略、监控告警、漏洞扫描、敏感数据脱敏、权限需求确认、多客户访问隔离评估、真实业务数据迁移验证及与日本公司的验收。
 
 ## 9. 当前验证说明
 
-本源代码包已执行文件完整性和静态约束检查；由于生成环境无法访问 npm/Maven Registry，并且没有可运行的 Docker/数据库服务，**未能在此环境完成 `mvn test`、`npm run build` 或真实 PostgreSQL 联调**。第一次构建应在联网环境完成；出现版本/编译问题时，以命令行真实输出为依据修正，而不是将其视为通过全部验收。
+2026-10-13 已在本机 Docker 环境完成前后端构建、Java 单元测试、隔离 PostgreSQL 恢复与迁移、40 项 HTTP 回归检查，以及浏览器登录、搜索、详情、PDF预览、上传关联记录选择和窄屏布局检查。具体修复、测试边界及回退方法见 [审计报告](docs/AUDIT-2026-10-13.md)。这不等同于生产业务验收。
 
 ## 10. 更多关联测试数据（SYN26）
 
@@ -150,6 +150,24 @@ bash samples/synthetic-demo/install_demo.sh
 
 补充的数据可通过 `samples/synthetic-demo/SYN26_演示数据汇总.xlsx` 阅读；SQL 数据对应 `samples/synthetic-demo/seed_demo.sql`，并附验证脚本 `verify_import.sql`。
 
-- 本次不改动 `ExportController.java`、`ContainerController.java`、`SalesController.java` 的现有搜索逻辑。
+- 2026-10-13 已增加统一关键词搜索，并对普通搜索中的 `%`、`_` 做字面匹配。
 - 五年监视页和数据导入页增加了**只读示例列表**，其他页面由新增数据库记录自动丰富。
-- 查询是否需要统一关键词、多字段 OR、型号规范化等优化，请阅读 [`docs/SEARCH_IMPROVEMENT_NOTES.md`](docs/SEARCH_IMPROVEMENT_NOTES.md)。
+- 已实现的搜索行为及型号规范化后续建议，请阅读 [`docs/SEARCH_IMPROVEMENT_NOTES.md`](docs/SEARCH_IMPROVEMENT_NOTES.md)。
+
+## 11. 日常启动、停止与数据库连接
+
+在终端执行：
+
+```bash
+cd /Users/ying/Downloads/trade-platform-v0.2
+docker compose -p trade-platform-v02 up -d      # 启动
+docker compose -p trade-platform-v02 stop       # 停止，保留容器和数据
+# 修改代码后：
+docker compose -p trade-platform-v02 up --build -d
+```
+
+本机入口为 `http://localhost:8088`（以 `.env` 的 `WEB_PORT` 为准）。DBeaver 使用 `127.0.0.1:5433`，数据库 `trade_platform`、用户 `trade_user`，密码取 `.env` 的 `DB_PASSWORD`。连接仅映射到本机回环地址。
+
+始终使用相同项目名 `trade-platform-v02`，避免因文件夹改名而连到另一套空数据卷。现有 `.env` 不要用示例文件覆盖。管理员仅在空库首次初始化；修改 `.env` 的管理员密码不会自动修改已存在用户的数据库密码。
+
+连续输错密码 5 次会将该账号暂时锁定 5 分钟。成功登录会重置失败次数。CSV 要求 UTF-8（支持 BOM）、2MB 以下、最多300行；同一出口号的客户、设备、日期及箱型信息必须一致，任一错误都会回滚整份导入。

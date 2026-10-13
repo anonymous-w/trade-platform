@@ -22,12 +22,18 @@ public class DocumentController {
   @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
   @PreAuthorize("hasRole('ADMIN')")
   public Map<String,Object> upload(@RequestParam(required=false) Long exportId,
-      @RequestParam(required=false) Long orderId,@RequestParam String type,@RequestPart("file") MultipartFile file) throws IOException {
+      @RequestParam(required=false) Long orderId,@RequestParam String type,@RequestPart("file") MultipartFile file, java.security.Principal principal) throws IOException {
     if((exportId==null)==(orderId==null))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Provide exactly one exportId or orderId");
+    long ownerId=exportId!=null?exportId:orderId;
+    if(ownerId<=0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"関連IDは正の整数で指定してください");
+    String ownerSql=exportId!=null?"SELECT count(*) FROM t_export WHERE export_id=:id":"SELECT count(*) FROM t_order WHERE order_id=:id";
+    if(db.queryForObject(ownerSql,Map.of("id",ownerId),Integer.class)==0)
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND,"関連する輸出・販売レコードがありません");
     if(!Set.of("INVOICE","PACKING_LIST","ORDER","CONTRACT","OTHER").contains(type))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Unknown document type");
     if(file.isEmpty() || file.getSize()>15*1024*1024)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"PDF file size must be 1 byte to 15 MB");
     String name=Optional.ofNullable(file.getOriginalFilename()).orElse("document.pdf").replaceAll("[\\\\/\\r\\n]","_");
-    if(!name.toLowerCase(Locale.ROOT).endsWith(".pdf"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Only PDF is supported in v0.1");
+    if(name.length()>255)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"ファイル名は255文字以内にしてください");
+    if(!name.toLowerCase(Locale.ROOT).endsWith(".pdf"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"PDFファイルのみ登録できます");
     byte[] content=file.getBytes();
     if(content.length<5 || content[0]!='%'||content[1]!='P'||content[2]!='D'||content[3]!='F'||content[4]!='-')
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid PDF signature");
@@ -36,8 +42,8 @@ public class DocumentController {
     Path target=base.resolve(key);
     Files.write(target,content,StandardOpenOption.CREATE_NEW);
     try {
-      Long id=db.queryForObject("INSERT INTO t_document(export_id,order_id,document_type,file_name,storage_key,mime_type,file_size_bytes) VALUES(:e,:o,:t,:n,:k,'application/pdf',:s) RETURNING document_id",
-          new org.springframework.jdbc.core.namedparam.MapSqlParameterSource().addValue("e",exportId).addValue("o",orderId).addValue("t",type).addValue("n",name).addValue("k",key).addValue("s",content.length),Long.class);
+      Long id=db.queryForObject("INSERT INTO t_document(export_id,order_id,document_type,file_name,storage_key,mime_type,file_size_bytes,created_by) VALUES(:e,:o,:t,:n,:k,'application/pdf',:s,:u) RETURNING document_id",
+          new org.springframework.jdbc.core.namedparam.MapSqlParameterSource().addValue("e",exportId).addValue("o",orderId).addValue("t",type).addValue("n",name).addValue("k",key).addValue("s",content.length).addValue("u",principal.getName()),Long.class);
       return Map.of("documentId",id,"name",name);
     }catch(Exception ex){Files.deleteIfExists(target);throw ex;}
   }

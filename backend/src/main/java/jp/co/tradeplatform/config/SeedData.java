@@ -14,6 +14,7 @@ public class SeedData implements ApplicationRunner {
   @Value("${app.admin-password}") String password;
   @Value("${app.demo-data}") boolean demo;
   public SeedData(JdbcTemplate jdbc, PasswordEncoder encoder) { this.jdbc=jdbc; this.encoder=encoder; }
+  @org.springframework.transaction.annotation.Transactional
   @Override public void run(ApplicationArguments args) {
     Integer count=jdbc.queryForObject("SELECT count(*) FROM m_user",Integer.class);
     if (count != null && count==0) {
