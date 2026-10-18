@@ -215,3 +215,11 @@ WHERE batch_id = 1 ORDER BY source_row;
 原有正式记录位于「登録済み輸出／登録済みコンテナ」标签。原始包装资料不会自动生成缺失的客户、发票、日期或销售记录。集装箱原文可能在多个包装行重复，不应相加作为实际箱数；销售与五年监视仍需相应业务数据。
 
 接口：`GET /api/packing-sources`，所有登录用户可访问；参数为 `keyword/model/container/departurePort/destinationPort/reviewOnly/page/size`，分页大小 1–100。
+
+## 通知中心
+
+顶部铃铛提供个人操作通知、未读数量、单条/全部已读和分页历史。Excel 预览上传、Excel/CSV 导入成功及失败由后端生成通知，持久化保存；每 30 秒自动更新。首次升级不生成历史通知，现有 PDF 上传暂停状态不变。修改、删除类型已预留，等待相应业务接口实现。详见 [通知中心说明](docs/NOTIFICATIONS.md)。
+
+## 期限管理表导入
+
+支持 Excel 预览、确认、重复处理和历史附件，并在販売管理及5年間監視共享查询。使用步骤与解析边界见 [期限管理表导入说明](docs/DEADLINE-IMPORT.md)。

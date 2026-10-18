@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NotificationCenter from '../components/NotificationCenter.vue'
 import {ref,computed,watch} from 'vue';import {useRoute,useRouter} from 'vue-router';import {ElMessage} from 'element-plus';import {user,logout,errorMessage} from '../api/http'
 const router=useRouter(),route=useRoute(),signingOut=ref(false);const name=computed(()=>user.value?.username||''),role=computed(()=>user.value?.roles.includes('ROLE_ADMIN')?'管理者':'閲覧ユーザー')
 const main=ref<{$el:HTMLElement}|null>(null)
@@ -19,6 +20,7 @@ async function signout(){if(signingOut.value)return;signingOut.value=true;try{aw
       <el-header class="topbar">
         <span class="top-label">販売・輸出管理システム</span>
         <div class="user-actions">
+          <NotificationCenter/>
           <span class="user-label"><span class="user-name" :title="name">{{name}}</span><small>{{role}}</small></span>
           <el-button class="logout-button" :loading="signingOut" @click="signout">ログアウト</el-button>
         </div>

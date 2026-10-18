@@ -24,6 +24,7 @@ export async function api<T=any>(path:string,opts:RequestInit={},retried=false):
   const unsafe=!['GET','HEAD','OPTIONS'].includes((opts.method||'GET').toUpperCase())
   if(unsafe){if(!csrfToken)await refreshCsrf();headers.set('X-XSRF-TOKEN',csrfToken)}
   const res=await request('/api'+path,{...opts,headers})
+  if(unsafe&&!path.startsWith('/auth/')&&!path.startsWith('/notifications'))window.dispatchEvent(new Event('business-operation-complete'))
   if(!res.ok){
     let info:any={};try{info=await res.json()}catch{}
     // Only retry a request rejected by the CSRF filter before reaching a controller.

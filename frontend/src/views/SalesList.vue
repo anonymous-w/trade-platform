@@ -1,11 +1,7 @@
 <script setup lang="ts">
-import {ref,onMounted} from 'vue';import {useRouter} from 'vue-router';import {ElMessage} from 'element-plus';import {api,query,download,errorMessage} from '../api/http'
-const router=useRouter(),search=ref(''),page=ref(1),rows=ref<any[]>([]),total=ref(0),busy=ref(false)
-let sequence=0;let applied=search.value
-function applySearch(){applied=search.value;page.value=1;void load()}
-async function load(){const request=++sequence;busy.value=true;try{const data=await api<any>('/sales?'+query({q:applied,page:page.value-1}));if(request!==sequence)return;rows.value=data.rows;total.value=data.total}catch(e){if(request===sequence){rows.value=[];total.value=0;ElMessage.error(errorMessage(e))}}finally{if(request===sequence)busy.value=false}}
-function windowPrint(){window.print()}
-async function exportCsv(){try{await download('/sales/export.csv?'+query({q:applied}),'sales.csv')}catch(e){ElMessage.error(errorMessage(e))}}
-onMounted(load)
+import {ref} from 'vue'
+import DeadlineSearch from '../components/DeadlineSearch.vue'
+import SalesRecords from '../components/SalesRecords.vue'
+const tab=ref('deadlines')
 </script>
-<template><h1 class="page-title">販売管理</h1><div class="banner">販売データの入力・承認ルールは未確定のため、初版は検索と閲覧のみ対応します。</div><section class="panel"><header class="panel-heading">検索条件</header><div class="panel-body"><el-form inline @submit.prevent="applySearch"><el-form-item label="受注No. / 取引先"><el-input v-model="search" clearable style="width:320px"/></el-form-item><el-button type="primary" native-type="submit">検索</el-button><el-button @click="search='';applySearch()">クリア</el-button></el-form></div></section><section class="panel"><header class="panel-heading toolbar" style="margin:0"><span>検索結果一覧（{{total}} 件）</span><div class="actions"><el-button @click="exportCsv">CSV出力</el-button><el-button @click="windowPrint">一覧印刷</el-button></div></header><div class="panel-body"><el-table v-loading="busy" :data="rows" border stripe><el-table-column prop="order_no" label="受注No."/><el-table-column prop="order_date" label="受注日"/><el-table-column prop="customer_name" label="取引先"/><el-table-column prop="total_amount" label="金額"/><el-table-column prop="currency_code" label="通貨" width="90"/><el-table-column prop="order_status" label="受注状態"/><el-table-column label="操作" width="100"><template #default="s"><el-button type="primary" plain size="small" @click="router.push('/sales/'+s.row.order_id)">詳細</el-button></template></el-table-column></el-table><el-pagination v-model:current-page="page" :page-size="20" :total="total" layout="prev,pager,next" style="justify-content:flex-end;margin-top:16px" @current-change="load"/></div></section></template>
+<template><h1 class="page-title">販売管理</h1><el-tabs v-model="tab"><el-tab-pane label="契約・商品（期限管理表）" name="deadlines"><DeadlineSearch v-if="tab==='deadlines'" mode="sales"/></el-tab-pane><el-tab-pane label="既存受注・販売" name="orders"><SalesRecords v-if="tab==='orders'"/></el-tab-pane></el-tabs></template>

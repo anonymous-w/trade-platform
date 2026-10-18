@@ -7,6 +7,7 @@ const ExportDetail=()=>import('../views/ExportDetail.vue')
 const DocumentPreview=()=>import('../views/DocumentPreview.vue')
 const ContainerHistory=()=>import('../views/ContainerHistory.vue')
 const SalesList=()=>import('../views/SalesList.vue')
+const DeadlineDetail=()=>import('../views/DeadlineDetail.vue')
 const SalesDetail=()=>import('../views/SalesDetail.vue')
 const ImportView=()=>import('../views/ImportView.vue')
 const MonitorView=()=>import('../views/MonitorView.vue')
@@ -19,10 +20,12 @@ const routes=[
     {path:'exports/:id/documents',component:DocumentPreview},
     {path:'containers',component:ContainerHistory},
     {path:'sales',component:SalesList},
+    {path:'sales/contracts/:id',component:DeadlineDetail,props:{mode:'sales'}},
     {path:'sales/:id',component:SalesDetail},
     {path:'sales/:id/documents',component:DocumentPreview},
     {path:'import',component:ImportView},
-    {path:'monitor',component:MonitorView}
+    {path:'monitor',component:MonitorView},
+    {path:'monitor/:id',component:DeadlineDetail,props:{mode:'monitor'}}
   ]},
   {path:'/:pathMatch(.*)*',redirect:'/exports'}
 ]

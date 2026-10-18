@@ -16,14 +16,19 @@ import org.springframework.web.server.ResponseStatusException;
 public class DocumentController {
   private final NamedParameterJdbcTemplate db;
   private final Path base;
+  private final org.springframework.transaction.support.TransactionTemplate transaction;
+  private final jp.co.tradeplatform.notification.NotificationService notifications;
   @Value("${app.pdf-upload-enabled:false}") private boolean pdfUploadEnabled;
-  public DocumentController(NamedParameterJdbcTemplate db,@Value("${app.storage-path}") String storage){
+  public DocumentController(NamedParameterJdbcTemplate db,@Value("${app.storage-path}") String storage,jp.co.tradeplatform.notification.NotificationService notifications,org.springframework.transaction.PlatformTransactionManager manager){
+    this.transaction=new org.springframework.transaction.support.TransactionTemplate(manager);
+    this.notifications=notifications;
     this.db=db;this.base=Paths.get(storage).toAbsolutePath().normalize();
   }
   @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
   @PreAuthorize("hasRole('ADMIN')")
   public Map<String,Object> upload(@RequestParam(required=false) Long exportId,
-      @RequestParam(required=false) Long orderId,@RequestParam String type,@RequestPart("file") MultipartFile file, java.security.Principal principal) throws IOException {
+      @RequestParam(required=false) Long orderId,@RequestParam String type,@RequestPart("file") MultipartFile file, java.security.Principal principal,jakarta.servlet.http.HttpServletRequest request) throws IOException {
+    request.setAttribute("notification.fileName",file.getOriginalFilename());
     if(!pdfUploadEnabled)throw new ResponseStatusException(HttpStatus.GONE,"PDFアップロードは現在停止しています。登録済み書類は引き続き閲覧できます");
     if((exportId==null)==(orderId==null))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Provide exactly one exportId or orderId");
     long ownerId=exportId!=null?exportId:orderId;
@@ -44,9 +49,13 @@ public class DocumentController {
     Path target=base.resolve(key);
     Files.write(target,content,StandardOpenOption.CREATE_NEW);
     try {
+      return transaction.execute(status -> {
       Long id=db.queryForObject("INSERT INTO t_document(export_id,order_id,document_type,file_name,storage_key,mime_type,file_size_bytes,created_by) VALUES(:e,:o,:t,:n,:k,'application/pdf',:s,:u) RETURNING document_id",
           new org.springframework.jdbc.core.namedparam.MapSqlParameterSource().addValue("e",exportId).addValue("o",orderId).addValue("t",type).addValue("n",name).addValue("k",key).addValue("s",content.length).addValue("u",principal.getName()),Long.class);
-      return Map.of("documentId",id,"name",name);
+      notifications.record(principal.getName(),"document-upload:"+id,jp.co.tradeplatform.notification.NotificationService.Type.FILE_UPLOAD,
+        jp.co.tradeplatform.notification.NotificationService.fileName(name)+" をアップロードしました。");
+      return Map.<String,Object>of("documentId",id,"name",name);
+      });
     }catch(Exception ex){Files.deleteIfExists(target);throw ex;}
   }
   @GetMapping("/{id}/content") public ResponseEntity<byte[]> content(@PathVariable long id){return serve(id,false);}

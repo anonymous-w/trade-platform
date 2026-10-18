@@ -19,8 +19,9 @@ import org.springframework.web.server.ResponseStatusException;
 public class PackingImportController {
   private final NamedParameterJdbcTemplate db;
   private final ObjectMapper json;
+  private final jp.co.tradeplatform.notification.NotificationService notifications;
   private final PackingWorkbookParser parser=new PackingWorkbookParser();
-  public PackingImportController(NamedParameterJdbcTemplate db,ObjectMapper json){this.db=db;this.json=json;}
+  public PackingImportController(NamedParameterJdbcTemplate db,ObjectMapper json,jp.co.tradeplatform.notification.NotificationService notifications){this.db=db;this.json=json;this.notifications=notifications;}
   private record Upload(String name,String fileHash,String contentHash,PackingWorkbookParser.Parsed parsed) {}
   private Upload read(MultipartFile file) throws IOException {
     String name=Optional.ofNullable(file.getOriginalFilename()).orElse("").replaceAll("[\\\\/\\r\\n]","_");
@@ -39,19 +40,23 @@ public class PackingImportController {
   }
   @PostMapping(value="/preview",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
   @PreAuthorize("hasRole('ADMIN')")
-  public Map<String,Object> preview(@RequestPart("file") MultipartFile file) throws IOException {
+  public Map<String,Object> preview(@RequestPart("file") MultipartFile file,Principal principal,jakarta.servlet.http.HttpServletRequest request) throws IOException {
+    request.setAttribute("notification.fileName",file.getOriginalFilename());
     Upload upload=read(file);var parsed=upload.parsed();Map<String,Object> result=new LinkedHashMap<>();
     result.put("fileName",upload.name());result.put("fileHash",upload.fileHash());result.put("sheetName",parsed.sheetName());
     result.put("rowCount",parsed.rows().size());result.put("contractCount",parsed.contractCount());result.put("reviewRows",parsed.reviewRows());
     result.put("rows",parsed.rows().stream().limit(100).toList());
     result.put("reviewSamples",parsed.rows().stream().filter(r->!r.warnings().isEmpty()).limit(100).toList());
-    result.put("duplicates",duplicates(upload));return result;
+    result.put("duplicates",duplicates(upload));
+    notifications.record(principal.getName(),"packing-upload:"+upload.fileHash(),jp.co.tradeplatform.notification.NotificationService.Type.FILE_UPLOAD,
+      jp.co.tradeplatform.notification.NotificationService.fileName(upload.name())+" をアップロードし、プレビューしました（まだ保存されていません）。");return result;
   }
   @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
   @PreAuthorize("hasRole('ADMIN')")
   @Transactional(rollbackFor=Exception.class)
   public Map<String,Object> save(@RequestPart("file") MultipartFile file,@RequestParam String previewHash,
-      @RequestParam(defaultValue="false") boolean acknowledgeReview,Principal principal) throws IOException {
+      @RequestParam(defaultValue="false") boolean acknowledgeReview,Principal principal,jakarta.servlet.http.HttpServletRequest request) throws IOException {
+    request.setAttribute("notification.fileName",file.getOriginalFilename());
     Upload upload=read(file);var parsed=upload.parsed();
     if(!upload.fileHash().equals(previewHash))throw new ResponseStatusException(HttpStatus.CONFLICT,"ファイルがプレビュー時と異なります。再度プレビューしてください");
     if(!acknowledgeReview)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"原資料として保存することを確認してください");
@@ -71,6 +76,8 @@ public class PackingImportController {
         INSERT INTO t_packing_source_row(batch_id,source_row,contract_no,equipment_name,model_no,part_name,needs_review,data)
         VALUES(:batch,:row,:contract,:equipment,:model,:part,:review,CAST(:data AS jsonb))
         """,rows.toArray(new MapSqlParameterSource[0]));
+      notifications.record(principal.getName(),"packing-import:"+id,jp.co.tradeplatform.notification.NotificationService.Type.DATA_IMPORT,
+        jp.co.tradeplatform.notification.NotificationService.fileName(upload.name())+" の取込みが完了しました（"+rows.size()+" 行）。");
       return Map.of("batchId",id,"rowCount",rows.size(),"contractCount",parsed.contractCount(),"reviewRows",parsed.reviewRows());
     }catch(org.springframework.dao.DataIntegrityViolationException e){throw new ResponseStatusException(HttpStatus.CONFLICT,"同じファイルの重複またはデータの競合があります。今回の保存は全て取り消しました");}
   }

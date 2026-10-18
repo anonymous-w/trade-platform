@@ -20,13 +20,15 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/imports")
 public class CsvImportController {
   private final NamedParameterJdbcTemplate db;
-  public CsvImportController(NamedParameterJdbcTemplate db){this.db=db;}
+  private final jp.co.tradeplatform.notification.NotificationService notifications;
+  public CsvImportController(NamedParameterJdbcTemplate db,jp.co.tradeplatform.notification.NotificationService notifications){this.db=db;this.notifications=notifications;}
   private static final List<String> COLS=List.of("export_no","customer_code","customer_name","equipment_code","equipment_name","model_no","invoice_no","invoice_date","export_date","part_name","length_mm","width_mm","height_mm","gross_weight_kg","volume_m3","container_type","container_qty","record_basis");
 
   @PostMapping(value="/csv",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
   @PreAuthorize("hasRole('ADMIN')")
   @Transactional
-  public Map<String,Object> importCsv(@RequestPart("file") MultipartFile file, java.security.Principal principal){
+  public Map<String,Object> importCsv(@RequestPart("file") MultipartFile file, java.security.Principal principal,jakarta.servlet.http.HttpServletRequest request){
+    request.setAttribute("notification.fileName",file.getOriginalFilename());
     if(file.isEmpty()||file.getSize()>2*1024*1024)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"CSV must be 1 byte to 2 MB");
     try(Reader reader=bomReader(file);
       CSVParser parser=CSVFormat.DEFAULT.builder().setHeader().setSkipHeaderRecord(true).setIgnoreSurroundingSpaces(true).get().parse(reader)){
@@ -76,6 +78,8 @@ public class CsvImportController {
           .addValue("x",decimal(row,"length_mm")).addValue("y",decimal(row,"width_mm")).addValue("z",decimal(row,"height_mm"))
           .addValue("w",decimal(row,"gross_weight_kg")).addValue("v",decimal(row,"volume_m3")));
       }
+      notifications.record(principal.getName(),"csv-import:"+entries.values().iterator().next().exportId,jp.co.tradeplatform.notification.NotificationService.Type.DATA_IMPORT,
+        jp.co.tradeplatform.notification.NotificationService.fileName(file.getOriginalFilename())+" の取込みが完了しました（輸出 "+created+" 件・包装明細 "+rows.size()+" 行）。");
       return Map.of("createdExports",created,"packingRows",rows.size(),"message","Imported as DRAFT: verify location, amounts and source evidence");
     }catch(ResponseStatusException e){throw e;}
     catch(org.springframework.dao.DataIntegrityViolationException e){throw new ResponseStatusException(HttpStatus.CONFLICT,"番号が重複しているか、既存データと競合しています。CSV全体の登録を取り消しました");}
