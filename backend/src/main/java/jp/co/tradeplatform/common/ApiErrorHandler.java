@@ -30,7 +30,7 @@ public class ApiErrorHandler {
   @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
   ResponseEntity<Map<String,String>> media(Exception e) { return error(415,"ファイルまたは送信形式を確認してください"); }
   @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
-  ResponseEntity<Map<String,String>> size(Exception e) { return error(413,"ファイルサイズが上限を超えています（PDF: 15MB、CSV: 2MB）"); }
+  ResponseEntity<Map<String,String>> size(Exception e) { return error(413,"ファイルサイズが上限を超えています（Excel: 10MB、CSV: 2MB）"); }
   @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
   ResponseEntity<Map<String,String>> conflict(Exception e) { return error(409,"番号の重複または関連データの不整合があります"); }
   @ExceptionHandler(Exception.class)

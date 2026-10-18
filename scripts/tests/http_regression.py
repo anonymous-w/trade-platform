@@ -80,12 +80,7 @@ def main():
     fresh=values.copy();fresh[0]=prefix+'-rollback';fresh[1]=prefix+'-new';fresh[3]=prefix+'-new'
     check('invoice conflict rolls back',lambda:admin.upload('/imports/csv','bad.csv',contents([fresh]),status=409))
     check('no partial export after database conflict',lambda:equal(admin.call('/exports?keyword='+fresh[0])['total'],0))
-    check('missing PDF owner',lambda:admin.upload('/documents','a.pdf',b'%PDF-1.4',{'exportId':999999999,'type':'OTHER'},status=404))
-    check('invalid PDF signature',lambda:admin.upload('/documents','a.pdf',b'not a pdf',{'exportId':eid,'type':'OTHER'},status=400))
-    check('ambiguous PDF owner',lambda:admin.upload('/documents','a.pdf',b'%PDF-1.4',{'exportId':eid,'orderId':1,'type':'OTHER'},status=400))
-    source=admin.call('/documents/'+str(recent[0]['document_id'])+'/content')
-    uploaded=admin.upload('/documents','audit.pdf',source,{'exportId':eid,'type':'OTHER'})
-    check('PDF bytes preserved',lambda:equal(admin.call('/documents/'+str(uploaded['documentId'])+'/download'),source))
+    check('PDF upload temporarily disabled',lambda:admin.upload('/documents','a.pdf',b'%PDF-1.4',{'exportId':eid,'type':'OTHER'},status=410))
     admin.call('/auth/logout','POST');admin.token=''
     check('logout invalidates session',lambda:admin.call('/auth/me',status=401))
     # Test account lockout last; this reader account belongs to the disposable fixture.

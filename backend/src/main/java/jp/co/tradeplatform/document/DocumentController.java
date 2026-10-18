@@ -16,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class DocumentController {
   private final NamedParameterJdbcTemplate db;
   private final Path base;
+  @Value("${app.pdf-upload-enabled:false}") private boolean pdfUploadEnabled;
   public DocumentController(NamedParameterJdbcTemplate db,@Value("${app.storage-path}") String storage){
     this.db=db;this.base=Paths.get(storage).toAbsolutePath().normalize();
   }
@@ -23,6 +24,7 @@ public class DocumentController {
   @PreAuthorize("hasRole('ADMIN')")
   public Map<String,Object> upload(@RequestParam(required=false) Long exportId,
       @RequestParam(required=false) Long orderId,@RequestParam String type,@RequestPart("file") MultipartFile file, java.security.Principal principal) throws IOException {
+    if(!pdfUploadEnabled)throw new ResponseStatusException(HttpStatus.GONE,"PDFアップロードは現在停止しています。登録済み書類は引き続き閲覧できます");
     if((exportId==null)==(orderId==null))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Provide exactly one exportId or orderId");
     long ownerId=exportId!=null?exportId:orderId;
     if(ownerId<=0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"関連IDは正の整数で指定してください");

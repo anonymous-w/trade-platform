@@ -5,6 +5,7 @@
   <groupId>jp.co.example</groupId><artifactId>trade-platform</artifactId><version>0.1.0</version><name>Trade Data Platform</name>
   <properties><java.version>21</java.version></properties>
   <dependencies>
+    <dependency><groupId>org.apache.poi</groupId><artifactId>poi-ooxml</artifactId><version>5.5.1</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency>

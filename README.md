@@ -11,9 +11,9 @@
 | Spring Security 登录、会话、CSRF、退出 | 已实现；首个管理员从环境变量初始化 |
 | 輸出管理：查询、分页、CSV导出 | 已实现 |
 | 輸出詳細：设备、包装件、发票、箱型、船期 | 已实现；从关联表实时读取 |
-| 原票プレビュー：PDF预览、下载、打印 | 已实现；上传真实 PDF 后可使用 |
+| 原票プレビュー：PDF预览、下载、打印 | 已实现；已有 PDF 可继续使用，新上传暂时停用 |
 | コンテナ実績：按型号/箱型/依据查询 | 已实现；区分 `PLANNED` / `DOCUMENTED` / `ACTUAL` |
-| データ取込み：PDF 上传、限定格式 CSV 导入 | 已实现；PDF不做OCR；CSV要求一笔出口只有一款设备 |
+| データ取込み：包装集计 Excel 原资料、限定 CSV | Excel 支持预览、确认保存和查询；PDF 上传暂时停用 |
 | 販売管理：列表、详情、PDF | **只读基础版**；不包含创建/审批流程 |
 | 5年間監視 | **只读参考列表**，不自动判定监视义务 |
 | 窄屏界面 | 基础响应式适配；没有独立手机 App |
@@ -83,7 +83,7 @@ trade-platform-v0.2/
 
 - **輸出管理**：填写 Invoice No.、设备、型号、客户或日期 → `検索` → `詳細` → 查看包装明细与集装箱来源 → `原票を見る` → 选择 Invoice/Packing List → `ダウンロード` 或 `印刷`。
 - **コンテナ実績**：按设备型号、箱型、证据类别过滤历史记录，然后点击 `詳細` 返回出口主记录。
-- **データ取込み**：管理员可上传 PDF 到指定出口或销售记录；CSV 模板可导入一笔出口/一款设备的多包装行。
+- **データ取込み**：管理员可预览并保存包装集计 Excel 原资料；所有登录用户可查询保存记录、原始行号及疑点。PDF 新上传暂停，已有文档仍可查看。旧 CSV 模板入口折叠保留。
 - **販売管理**：只读列表与详情，数据需另行导入；销售审批未实现。
 
 ## 6. 重要的数据约定
@@ -108,10 +108,14 @@ trade-platform-v0.2/
 | `/api/exports/export.csv` | GET | 导出筛选记录，上限1万行 |
 | `/api/containers` | GET | 集装箱历史查询 |
 | `/api/sales`, `/api/sales/{id}` | GET | 只读销售查询 |
-| `/api/documents` | POST | 管理员 PDF 上传 |
+| `/api/documents` | POST | PDF 上传暂时停止（管理员请求返回 410） |
 | `/api/documents/{id}/content` | GET | 内联 PDF 预览 |
 | `/api/documents/{id}/download` | GET | 下载原始 PDF |
 | `/api/imports/csv` | POST | 管理员导入受限 CSV |
+| `/api/imports/packing/preview` | POST | 管理员预览包装集计 XLSX，不写数据库 |
+| `/api/imports/packing` | POST | 管理员确认保存原资料，需 previewHash、acknowledgeReview |
+| `/api/imports/packing/batches` | GET | 最近 50 个导入批次 |
+| `/api/imports/packing/batches/{id}/rows` | GET | 分页、关键词、要确认项筛选 |
 
 ## 8. 测试与上线前检查
 
@@ -125,7 +129,7 @@ cd .. && docker compose -p trade-platform-v02 up --build -d
 
 1. 用不同浏览器访问系统，匿名请求受保护 API 应返回 401。
 2. 登录后查询 `DEMO-EXP-001`，确认四条包装明细和 `DOCUMENTED` 的 20DRY×1。
-3. 上传一个真实 PDF，确认在预览页能查看、下载、打印。
+3. 在データ取込み选择包装集计 Excel，预览后确认保存；检查合同搜索、分页和要确认项。已有 PDF 仍可查看、下载、打印，新上传已停用。
 4. 使用 `samples/export-import-template.csv` 导入测试记录，确认明细和容器可查；再次导入应拒绝重复。
 5. 通过无管理员权限账户验证不能执行文件上传或 CSV 导入（需要另行建立 USER 角色账户）。
 6. 在测试数据库上执行数据备份和恢复演练。
@@ -171,3 +175,43 @@ docker compose -p trade-platform-v02 up --build -d
 始终使用相同项目名 `trade-platform-v02`，避免因文件夹改名而连到另一套空数据卷。现有 `.env` 不要用示例文件覆盖。管理员仅在空库首次初始化；修改 `.env` 的管理员密码不会自动修改已存在用户的数据库密码。
 
 连续输错密码 5 次会将该账号暂时锁定 5 分钟。成功登录会重置失败次数。CSV 要求 UTF-8（支持 BOM）、2MB 以下、最多300行；同一出口号的客户、设备、日期及箱型信息必须一致，任一错误都会回滚整份导入。
+
+
+## 包装集计 Excel 原资料导入（2026-10-18）
+
+进入 `データ取込み`，选择 `.xlsx` → `プレビュー` → 检查行数和「要確認」 → 勾选确认 → `原資料として保存`。保存后在同页下方按合同号、设备、型号或分解部名称查询，点击「原文／要確認」查看对应 Excel 行及原始单元格。
+
+- 支持本项目核对的包装集计格式：单工作表、3〜4 行为表头、B:P 列、从第 5 行开始；上限 10MB / 10,000 行。不是任意 Excel 的通用识别器。
+- 识别合并单元格、同合同多设备、D:E 合并时 F/G 为型号/部件的变体，以及明确的 G/H 数量与包装编号互换。列变化会标为要确认；没有合并关系的空白不会擅自向下填充。
+- 数量、尺寸、重量、体积采用保存值。保留原有小数，不改写原值、不把共享数值复制到各行、不自动换算疑似厘米尺寸或重算体积。公式不执行、外部工作簿不读取，外部引用产生的设备信息保留原文并标为未确定。
+- 容器类型和数量保留原文，暂不推断实绩；客户、发票、日期缺失不会编造，因此记录只进入原资料库，不生成正式出口单，不进入正式集装箱统计。
+- 文件 SHA-256 和解析内容 SHA-256 都有唯一约束；相同文件改名或仅重新压缩后上传也不会重复。修改业务内容的工作簿属于新批次，不自动覆盖旧资料；可能有重复的合同，正式业务整合前需核对。
+- 数据库新增 Flyway V3：`t_packing_import_batch` 保存批次、校验摘要、行数和导入人；`t_packing_source_row` 保存可检索字段与 JSONB 原始/解析内容、数式、合并范围和疑点。不修改 V1/V2 或现有业务记录。
+- PDF POST 接口默认关闭（`app.pdf-upload-enabled=false`），新上传入口移除；恢复功能需明确重新启用配置和界面，已有私有文档访问不受影响。
+- 真实 Excel、真实数据导出和环境密码不得提交 GitHub。解析器测试使用生成的测试工作簿；完整文件的本地验证通过 `PACKING_TEST_FILE` 指定路径。
+
+DBeaver 查询原资料示例：
+
+```sql
+SELECT batch_id, file_name, row_count, contract_count, review_rows, created_at
+FROM t_packing_import_batch ORDER BY batch_id DESC;
+
+SELECT source_row, contract_no, equipment_name, model_no, part_name,
+       data->>'quantity' AS quantity, data->>'quantityUnit' AS quantity_unit,
+       data->>'widthMm' AS width_mm, data->>'depthMm' AS depth_mm,
+       data->>'heightMm' AS height_mm, data->>'weightKg' AS weight_kg,
+       data->>'volumeM3' AS volume_m3, data->'warnings' AS warnings
+FROM t_packing_source_row
+WHERE batch_id = 1 ORDER BY source_row;
+```
+
+数式读取使用 [Apache POI 的保存结果机制](https://poi.apache.org/components/spreadsheet/eval.html)，不执行外部引用或宏。详见 [Excel 导入验证记录](docs/EXCEL-IMPORT-2026-10-18.md)。
+
+
+## 管理页面中的 Excel 资料检索
+
+保存后进入「輸出管理」或「コンテナ実績」→「Excel取込資料」，可跨文件查询合同、设备、型号、部件、包装编号、集装箱及港口，并组合筛选型号、箱型、出发港、目的港和要确认项。没有正式记录时默认显示此标签。现有资料无需重新导入，点击「原文／要確認」可查看来源文件、行号和原始单元格。
+
+原有正式记录位于「登録済み輸出／登録済みコンテナ」标签。原始包装资料不会自动生成缺失的客户、发票、日期或销售记录。集装箱原文可能在多个包装行重复，不应相加作为实际箱数；销售与五年监视仍需相应业务数据。
+
+接口：`GET /api/packing-sources`，所有登录用户可访问；参数为 `keyword/model/container/departurePort/destinationPort/reviewOnly/page/size`，分页大小 1–100。
